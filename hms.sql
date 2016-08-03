@@ -3,7 +3,7 @@
 -- http://www.phpmyadmin.net
 --
 -- Host: 127.0.0.1
--- Generation Time: Aug 03, 2016 at 11:12 AM
+-- Generation Time: Aug 03, 2016 at 12:18 PM
 -- Server version: 5.5.44
 -- PHP Version: 5.6.19
 
@@ -29,11 +29,18 @@ SET time_zone = "+00:00";
 CREATE TABLE `appointments` (
   `doctor_id` varchar(50) NOT NULL,
   `appointment_id` int(11) NOT NULL,
-  `appointment_timestamp` int(11) NOT NULL,
-  `appointment_upcomingpast` int(11) NOT NULL,
-  `appointment_fee` int(11) NOT NULL,
+  `appointment_timestamp` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `appointment_upcomingpast` varchar(200) NOT NULL,
+  `appointment_fee` float NOT NULL,
   `patient_id` int(11) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+--
+-- Dumping data for table `appointments`
+--
+
+INSERT INTO `appointments` (`doctor_id`, `appointment_id`, `appointment_timestamp`, `appointment_upcomingpast`, `appointment_fee`, `patient_id`) VALUES
+('13568135496841', 3, '2016-08-03 11:45:06', 'hello', 200, 1);
 
 -- --------------------------------------------------------
 
@@ -49,8 +56,8 @@ CREATE TABLE `doctor` (
   `email` varchar(50) NOT NULL,
   `password` varchar(50) NOT NULL,
   `gender` bit(2) NOT NULL,
-  `picture` blob NOT NULL,
-  `logo` blob NOT NULL,
+  `picture` longblob NOT NULL,
+  `logo` longblob NOT NULL,
   `phone no` varchar(20) NOT NULL,
   `professional body` varchar(50) NOT NULL,
   `qualification` varchar(200) NOT NULL,
@@ -172,12 +179,19 @@ CREATE TABLE `patient_address` (
 CREATE TABLE `patient_data` (
   `patient_id` int(11) NOT NULL,
   `patient_name` varchar(50) NOT NULL,
-  `patient_E-mail` varchar(50) NOT NULL,
+  `patient_email` varchar(50) NOT NULL,
   `doctor_id` varchar(50) NOT NULL,
   `dob_day` int(11) NOT NULL,
   `dob_month` varchar(15) NOT NULL,
   `dob_year` varchar(15) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+--
+-- Dumping data for table `patient_data`
+--
+
+INSERT INTO `patient_data` (`patient_id`, `patient_name`, `patient_email`, `doctor_id`, `dob_day`, `dob_month`, `dob_year`) VALUES
+(1, 'Ammad', 'amaad@gmail.com', '13568135496841', 12, '10', '1992');
 
 -- --------------------------------------------------------
 
@@ -186,10 +200,18 @@ CREATE TABLE `patient_data` (
 --
 
 CREATE TABLE `patient_phone` (
-  `phone_no` int(11) NOT NULL,
-  `mobile_no` int(11) NOT NULL,
-  `patient_id` int(11) NOT NULL
+  `mobile_no` int(12) NOT NULL,
+  `patient_id` int(11) NOT NULL,
+  `phone_id` int(11) NOT NULL,
+  `phone_no` int(11) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+--
+-- Dumping data for table `patient_phone`
+--
+
+INSERT INTO `patient_phone` (`mobile_no`, `patient_id`, `phone_id`, `phone_no`) VALUES
+(1354321665, 1, 1, 541568461);
 
 -- --------------------------------------------------------
 
@@ -341,7 +363,7 @@ ALTER TABLE `patient_data`
 -- Indexes for table `patient_phone`
 --
 ALTER TABLE `patient_phone`
-  ADD PRIMARY KEY (`phone_no`),
+  ADD PRIMARY KEY (`phone_id`),
   ADD UNIQUE KEY `patient_id` (`patient_id`);
 
 --
@@ -388,7 +410,7 @@ ALTER TABLE `speciality`
 -- AUTO_INCREMENT for table `appointments`
 --
 ALTER TABLE `appointments`
-  MODIFY `appointment_id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `appointment_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 --
 -- AUTO_INCREMENT for table `doctor_fee`
 --
@@ -428,12 +450,12 @@ ALTER TABLE `patient_address`
 -- AUTO_INCREMENT for table `patient_data`
 --
 ALTER TABLE `patient_data`
-  MODIFY `patient_id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `patient_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 --
 -- AUTO_INCREMENT for table `patient_phone`
 --
 ALTER TABLE `patient_phone`
-  MODIFY `phone_no` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `phone_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 --
 -- AUTO_INCREMENT for table `practice_table`
 --
