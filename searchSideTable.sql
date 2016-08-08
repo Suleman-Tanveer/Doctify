@@ -7,7 +7,7 @@
 -- Server version: 5.1.54
 -- PHP Version: 5.3.5
 
-talha u rule
+
 SET SQL_MODE="NO_AUTO_VALUE_ON_ZERO";
 
 
