@@ -1,0 +1,542 @@
+<?php
+include_once "class.smtp.php";
+include_once "class.phpmailer.php";
+class mysqldb{
+
+	function __construct(){
+		//if db connection not exist, it will create aq new connection "con" 
+		if (!$this->db){
+		$this->db = new ezSQL_mysql(dbusername,dbpassword,dbname,host);
+	 }
+	
+	}
+
+
+	function get_account($key,$mail){
+		/* used to get the information against an email. when user sign up, a key is sent to his/her emai. When user click the 
+			links that is present in the varification email provided by DOCLINE this link holds the secert key and this key is
+			then matched with our databse, if match the row is returned.
+
+		*/
+
+		echo $sql = "select * from `" . DB_PREFIX . "users` WHERE `email`='".base64_decode($mail,true)."' and `secret_key`='".$key."'";			
+	 	return $this->db->get_row($sql,ARRAY_A);
+	}
+	//web service data
+	function set_account($key,$mail){
+
+		//////////////////// When User authenticates from email its status is set to 1. i.e varified user /////////////////////
+		
+		$sql = "update `" . DB_PREFIX . "users` SET status=1 WHERE `email`='".base64_decode($mail,true)."' and `secret_key`='".$key."'";			
+	 	return $this->db->get_row($sql,ARRAY_A);
+	}
+	function get_table_selected_field_data($table,$fields){
+
+		$sTable = DB_PREFIX .$table;
+		$sField = implode(',', $fields); /// implode is a array seperator
+		/////////// checks whether the values comming from form exits in databse or not////////
+		$sQuery = "SELECT $sField FROM $sTable"; 
+		return $rResult = $this->db->get_results($sQuery,ARRAY_A) ;
+	}
+	function get_table_selected_field_data_where($table,$fields,$where){
+
+		
+		$sTable = DB_PREFIX .$table;
+		$sField = implode(',', $fields);
+		/////////// checks whether the values comming from form exits in databse or not////////
+		$sQuery = "SELECT $sField FROM $sTable";
+		return $rResult = $this->db->get_results($sQuery,ARRAY_A) ;
+	}
+	function get_table_selected_field_data_like($table,$fields,$like,$search_text){
+
+		$sTable = DB_PREFIX .$table;
+		$sField = implode(',', $fields);
+		//$sLike = implode(' or like',$like);
+		foreach ($like as $key => $value) {
+			$slike []= $value." like '%".$search_text."%'"; 	
+		}
+		$sLike = implode(' or ',$slike);
+		$sQuery = "SELECT $sField FROM $sTable where  $sLike";
+		return $rResult = $this->db->get_results($sQuery,ARRAY_A) ;
+	}
+	function getUserAppointmentDetails($userID){
+		try 
+		{
+			/*	get the appointment detials like time, date etc like things of a user (patient) 
+			*/
+			$sql = "SELECT * FROM (SELECT * FROM `" . DB_PREFIX . "doctor_appointments` WHERE `patient_id`='".$userID."'  order by id desc) as tmpTable group by doctor_id";			
+			return $this->db->get_results($sql,ARRAY_A);
+		}
+		catch(Exception $e)
+		{
+			echo $e->getMessage();
+		}
+	}
+	 function userAppoinmentCount($doctor_id){
+     try
+     {
+      	/*	Finding No. of Appointments of a particular Doctor. Doctor id is recieved as a parameter and the same key is matched
+      		in the "doctor_appointments" table the result is carried out in an array
+
+      	*/
+	      $sql = "SELECT doctor_id, count(doctor_id) as count from `" . DB_PREFIX . "doctor_appointments` WHERE `doctor_id`='".$doctor_id."'GROUP BY doctor_id";   
+	      
+	        return $this->db->get_row($sql,ARRAY_A);
+	  }
+	  catch(Exception $e)
+	  {
+	   echo $e->getMessage();
+	  }
+	 }
+
+	 function getDocSpeciality_web($party_id)
+	{
+		try
+		{
+
+		/*	Finding Specialist with name and ID for a particular user (patient) 
+			party_id = users_ID
+		*/
+		
+			$sql = "SELECT spc.name,spc.id FROM " . DB_PREFIX . "speciality spc LEFT JOIN " . DB_PREFIX . "users docspc ON(docspc.speciality=spc.id) WHERE docspc.id = '".$party_id."'";
+			return $this->db->get_row($sql,ARRAY_A);
+		}
+		catch(Exception $e)
+		{
+			echo $e->getMessage();
+		}
+	
+	}
+//web service data
+function PdfDetails($doctor_id){
+     try
+     {
+      /* View those doctors details who have checked the patients who checked in.
+      */
+       $sql = "select * from scad_checkin where id=".$doctor_id;   
+        return $this->db->get_results($sql,ARRAY_A);
+  }
+  catch(Exception $e)
+  {
+   echo $e->getMessage();
+  }
+ }
+ function AppoinmentCount($doctor_id){
+     try
+     {
+      /*	Counting Appointments of a particular Doctor  also showing the id of that doctor whose appointments are to be 
+      		counted 
+      */
+      $sql = "SELECT doctor_id, count(doctor_id) from `" . DB_PREFIX . "doctor_appointments` WHERE `doctor_id`='".$doctor_id."'GROUP BY doctor_id";   
+        return $this->db->get_results($sql,ARRAY_A);
+  }
+  catch(Exception $e)
+  {
+   echo $e->getMessage();
+  }
+ }
+//shilpa...............//
+    
+    
+    function apnt_spec_with_docname($doctor_id,$speciality_id){
+
+    	/*Finding Details of appointment with Doctor specifications and doctor's data.
+    		Three table join. (1. doctor_speciality 2. users 3. speciality )
+    		those users are selected who have following properties
+    		1.	is a user and have some speciality (doctor with some speciality)
+    		2.	have speciality same as provided in speciality category.(scad_doctor_speciality.speciality_id=scad_speciality.id)
+    		3.	status of speciality of doctor match with the status of speciality category (scad_doctor_speciality.speciality_status=specl.id)
+    	*/
+	$sql="SELECT scad_doctor_speciality.*, scad_users.firstname,scad_speciality.name as spec,specl.name as status FROM scad_doctor_speciality 
+	INNER JOIN scad_users ON scad_doctor_speciality.doctor_id=scad_users.id 
+	INNER JOIN scad_speciality ON scad_doctor_speciality.speciality_id=scad_speciality.id  
+	INNER JOIN scad_speciality as specl ON scad_doctor_speciality.speciality_status=specl.id ";
+	return $this->db->get_results($sql,ARRAY_A);
+	}
+    
+    function apnt_insu_with_docname($doctor_id,$insurance_id){
+    	
+
+    	
+		/*	Finding Details of insurance of doctors 
+    		Three table join. (1. doctor_insurance 2. users 3. insurance )
+    		those doctors are selected who have following properties
+    		1.	are linked to some insurance and a valid user
+    		2.	have insurance that is provided in insurance category
+    		3.	have some match sub insurance of doctors with provided insurance category.
+    	*/
+
+
+	$sql="SELECT scad_doctor_insurance.*, scad_users.firstname,scad_insurance.name as ins,insu.name as sub FROM scad_doctor_insurance 
+	INNER JOIN scad_users ON scad_doctor_insurance.doctor_id=scad_users.id 
+	INNER JOIN scad_insurance ON scad_doctor_insurance.insurance_id=scad_insurance.id 
+	INNER JOIN scad_insurance as insu ON scad_doctor_insurance.sub_insurance_id=insu.id ";
+	return $this->db->get_results($sql,ARRAY_A);
+	}
+    
+    
+	function apnt_lang_with_docname($doctor_id,$language_id){
+		/* Doctors with repective languages 
+			Three table Join (1. doctor_language 2. users 3. languages)
+			Those doctors are selected who have following properties
+			1.	who is a user and have have same language provided in doctor_language column
+			
+		*/
+		
+	$sql="SELECT scad_doctor_languages.*, scad_users.firstname,scad_languages.name as lang FROM scad_doctor_languages 
+	INNER JOIN scad_users ON scad_doctor_languages.doctor_id=scad_users.id 
+	INNER JOIN scad_languages ON scad_doctor_languages.language_id=scad_languages.id  ";
+	return $this->db->get_results($sql,ARRAY_A);
+	}
+	  
+	  
+	function apnt_details_with_docname($doctor_id,$patient_id){
+
+		/* Finding Details of appointment for a patient with Doctor specifications (name and id etc )
+			Two table Join (1. doctor_appointments 2. users)
+		*/
+
+	$sql="SELECT scad_doctor_appointments.*, scad_users.firstname as doc_name ,user.firstname as patient_name FROM scad_doctor_appointments 
+	INNER JOIN scad_users ON scad_doctor_appointments.doctor_id=scad_users.id 
+	INNER JOIN scad_users as user ON scad_doctor_appointments.patient_id=user.id";
+	return $this->db->get_results($sql,ARRAY_A);
+	}
+	
+	function apnt_rtng_with_docname($doctor_id,$user_id){
+		/*	showing rating of doctor along with the name of patient who rated the doctor along whith message and rating
+		*/
+	$sql="SELECT scad_ratings.*, scad_users.firstname,user.firstname as usertype FROM scad_ratings 
+	INNER JOIN scad_users ON scad_ratings.doctor_id=scad_users.id 
+	INNER JOIN scad_users as user ON scad_ratings.userid=user.id  ";
+	return $this->db->get_results($sql,ARRAY_A);
+	}
+	
+	
+//----------------------------//	
+	function getDownload($userid){
+  try 
+  {
+  	/* getting details of a patients who checked in. by providing the id of user (patient, doctor) one can get the details
+  		of his/her check in. details include time, day, insurance company etc like things. 
+  	*/
+   $sql = "SELECT * FROM `" . DB_PREFIX . "checkin` WHERE `apnt_id`='".$userid."'"; 
+   return $this->db->get_row($sql,ARRAY_A);
+  }
+  catch(Exception $e)
+  {
+   echo $e->getMessage();
+  }
+ }
+
+ 	/*	Takes information from user like reason for visit, condition etc  key = user_ID , value = name of patient
+
+ 	*/
+	function listbox($table,$key,$val,$condition=NULL,$order=NULL,$selected=NULL) /// index.php line 1013
+	{
+		try 
+		{
+			$condition = ($condition<>"" ) ?  "AND $condition " : "";
+			$order = ($order<>"" ) ?  "ORDER BY  $order " : "";
+		    $sql ="SELECT $key,$val FROM `" . DB_PREFIX . "$table` WHERE 1 $condition $order";
+			$res = $this->db->get_results($sql,ARRAY_A);
+			foreach($res as $keys=>$value)
+			{
+				//echo $selected == $keys;
+				$select = ($selected == $value[$key]) ? "selected='selected'" : "" ;
+				$values.= "<option value='".$value[$key]."' $select>$value[$val]</value><br>";
+			}
+			echo $values;
+		}
+		catch(Exception $e)
+		{
+			echo $e->getMessage();
+		}
+	}
+	function userExistancy($email){
+		try 
+		{
+			/* select user details against particular email. This query is executed when user tries to sign up.
+				if the email obtained from form already exists in the "scad_user" table, sign up process should be stopped
+				by showing concerned message. 
+			*/
+
+			$sql = "SELECT * FROM `" . DB_PREFIX . "users` WHERE `email`='".$email."'";			
+			return count($this->db->get_row($sql,ARRAY_A));
+		}
+		catch(Exception $e)
+		{
+			echo $e->getMessage();
+		}
+	}
+	function userDeatails($email,$password){
+		try 
+		{
+			/* selecting details of a user after having its email and password md5 is hashing algorithim 
+				This query is used when user (doctor, patient) tries to log in. for authentication of user this query is 
+				used.
+			*/
+			 $sql = "SELECT * FROM `" . DB_PREFIX . "users` WHERE `email`='".$email."' AND `password`='".md5($password)."'";			
+			return $this->db->get_row($sql,ARRAY_A);
+		}
+		catch(Exception $e)
+		{
+			echo $e->getMessage();
+		}
+	}
+	function getUserDetails($userID){
+		try 
+		{
+			/* geting details of particular user (doctor, patient). ID of the user will be entered and as a result
+				details like first name, last name, address etc like fields will be displayed.
+			*/
+			$sql = "SELECT * FROM `" . DB_PREFIX . "users` WHERE `id`='".$userID."'";			
+			return $this->db->get_row($sql,ARRAY_A);
+		}
+		catch(Exception $e)
+		{
+			echo $e->getMessage();
+		}
+	}
+function getAlpha($userID){
+		try 
+		{
+			/*	Serching a particular doctor against its name. user(patient) will enter the first name of doctor and if there 
+				exists such doctor, his/her id first name last name and address will be shown
+			 */
+			$sql = "SELECT id,firstname,lastname,address FROM `" . DB_PREFIX . "users` WHERE `usertype`='1' and firstname like '".$userID."%'";			
+			return $this->db->get_results($sql,ARRAY_A);
+		}
+		catch(Exception $e)
+		{
+			echo $e->getMessage();
+		}
+	}	
+	
+function getAlpha1($userID,$start,$end){
+		try 
+		{
+			/* Serching list of doctor from start point and end point. each page can hold 12 doctors.
+				user (patient) can enter the first name of doctor and all the doctors whose first name matches will 
+				be prompted out. There is a limit on page of 12 doctors after this user(patient) will click more and then this 
+				query will be executed againg now the starting point will be 12. from 12 to 24 doctors will be shown if there exists
+				such doctors.
+			*/
+			$sql = "SELECT id,firstname,lastname,address FROM `" . DB_PREFIX . "users` WHERE `usertype`='1' and firstname like '".$userID."%' LIMIT ".$start." , ".$end."";			
+			return $this->db->get_results($sql,ARRAY_A);
+		}
+		catch(Exception $e)
+		{
+			echo $e->getMessage();
+		}
+	}	
+	
+	function getSpecl($userID){
+		try 
+		{	
+			/* Serching doctors on the base of speciality, there is a join of two tables scad_speciality & 
+			 scad_user. Need of join is that we want those users whose type is 1 (1 for doctor, 2 for patient)
+			 and the same users(doctor) have existance in speciality table. In simple words this query is searching 
+			 those doctors whose speciality is "speciality name "
+			*/
+			$sql = "SELECT spcl.*,users.* FROM `" . DB_PREFIX . "speciality` as spcl inner join `" . DB_PREFIX . "users` as users on users.speciality=spcl.id and spcl.name like '".$userID."%'";			
+			return $this->db->get_results($sql,ARRAY_A);
+		}
+		catch(Exception $e)
+		{
+			echo $e->getMessage();
+		}
+	}	
+	
+function getSpecl1($userID,$start,$end){
+		try 
+		{
+			/////////////////////// showing Doctors with speciality from starting point to ending point. list can contain 24
+			////////////////////// 	records.  LIMIT is applied on search  
+			$sql = "SELECT spcl.*,users.* FROM `" . DB_PREFIX . "speciality` as spcl inner join `" . DB_PREFIX . "users` as users on users.speciality=spcl.id and spcl.name like '".$userID."%' LIMIT ".$start." , ".$end."";			
+			return $this->db->get_results($sql,ARRAY_A);
+		}
+		catch(Exception $e)
+		{
+			echo $e->getMessage();
+		}
+	}
+	
+	function getLang($userID){
+		try 
+		{
+			////////// getting language of a particular user (patient, doctor) ////////////
+			$sql = "SELECT * FROM `" . DB_PREFIX . "languages` WHERE  name like '".$userID."%'";			
+			return $this->db->get_results($sql,ARRAY_A);
+		}
+		catch(Exception $e)
+		{
+			echo $e->getMessage();
+		}
+	}	
+	
+function getLang1($userID,$start,$end){
+		try 
+		{
+			/*	Getting language of a user to a specific LIMIT.  
+			*/
+			$sql = "SELECT * FROM `" . DB_PREFIX . "languages` WHERE  name like '".$userID."%' LIMIT ".$start." , ".$end."";			
+			return $this->db->get_results($sql,ARRAY_A);
+		}
+		catch(Exception $e)
+		{
+			echo $e->getMessage();
+		}
+	}
+	
+	
+	function getInsura($userID){
+		try 
+		{
+			/*	get insurance of a specific user
+			*/
+			$sql = "SELECT * FROM `" . DB_PREFIX . "insurance` WHERE  name like '".$userID."%'";			
+			return $this->db->get_results($sql,ARRAY_A);
+		}
+		catch(Exception $e)
+		{
+			echo $e->getMessage();
+		}
+	}	
+	
+function getInsura1($userID,$start,$end){
+		try 
+		{
+			/*	get insurance of a user to a limit. one user can have many insurance connected to it.
+			*/
+			$sql = "SELECT * FROM `" . DB_PREFIX . "insurance` WHERE  name like '".$userID."%' LIMIT ".$start." , ".$end."";			
+			return $this->db->get_results($sql,ARRAY_A);
+		}
+		catch(Exception $e)
+		{
+			echo $e->getMessage();
+		}
+	}
+	
+	
+	
+	function getloca($userID){
+		try 
+		{
+			///////////// Finds location of a User (doctor or patient) ////////////
+			$sql = "SELECT * FROM `" . DB_PREFIX . "location` WHERE  location_name like '".$userID."%'";			
+			return $this->db->get_results($sql,ARRAY_A);
+		}
+		catch(Exception $e)
+		{
+			echo $e->getMessage();
+		}
+	}	
+	
+function getloca1($userID,$start,$end){
+		try 
+		{
+			/* 	Finds loacation of a User (doctor or patient) from some starting point to some ending point
+				 one page can contain 24 location. starting point is 1 and then it is incremented.
+			*/
+			$sql = "SELECT * FROM `" . DB_PREFIX . "location` WHERE  location_name like '".$userID."%' LIMIT ".$start." , ".$end."";			
+			return $this->db->get_results($sql,ARRAY_A);
+		}
+		catch(Exception $e)
+		{
+			echo $e->getMessage();
+		}
+	}
+	
+	
+	
+	function getDocid(){
+		try 
+		{
+			////////////////// TODO ///////////////////////////////
+			/*	Selects those doctors who are valid users and who have been rated in between 30 days. 
+			*/
+			//$sql = "SELECT * FROM `" . DB_PREFIX . "languages` WHERE  name like '".$userID."%'";	
+			$sql = "SELECT A.`doctor_id` as doc_id,B.id FROM `" . DB_PREFIX . "ratings` A,`" . DB_PREFIX . "users` B WHERE A.`date` BETWEEN CURDATE() - INTERVAL 30 DAY AND CURDATE() AND A.`doctor_id`=B.`id` group by B.`id`";		
+			return $this->db->get_results($sql,ARRAY_A);
+		}
+		catch(Exception $e)
+		{
+			echo $e->getMessage();
+		}
+	}
+	
+	function getDocidLimit($start,$end){
+		try 
+		{
+			////////////////// TODO ///////////////////////////////
+
+			/*	Selects those doctors who are valid users and who have been rated in between 30 days also applying LIMIT
+				to the search. 
+			*/
+			//$sql = "SELECT * FROM `" . DB_PREFIX . "languages` WHERE  name like '".$userID."%'";	
+			$sql = "SELECT A.`doctor_id` as doc_id,B.id FROM `" . DB_PREFIX . "ratings` A,`" . DB_PREFIX . "users` B WHERE A.`date` BETWEEN CURDATE() - INTERVAL 30 DAY AND CURDATE() AND A.`doctor_id`=B.`id` group by B.`id` LIMIT ".$start." , ".$end."";		
+			return $this->db->get_results($sql,ARRAY_A);
+		}
+		catch(Exception $e)
+		{
+			echo $e->getMessage();
+		}
+	}
+	
+	function getRatingCount($userID){
+		try 
+		{
+			//////////// Counts the rating of doctor. Every time user checks in he/she can give the rating of the visit
+			///////////  this rating is stored in Doctors record. ////////////////////////////////////////////////////
+
+			$sql = "SELECT count(doctor_id) as reviewCount FROM `" . DB_PREFIX . "ratings` WHERE `doctor_id`='".$userID."'";			
+			return $this->db->get_row($sql,ARRAY_A);
+		}
+		catch(Exception $e)
+		{
+			echo $e->getMessage();
+		}
+	}
+	
+	function getAppointmentDetails($userID){
+		try 
+		{
+			//////////////// gets all appointments of a particular doctor ///////////////////////////
+
+			$sql = "SELECT * FROM `" . DB_PREFIX . "doctor_appointments` WHERE `doctor_id`='".$userID."'";			
+			return $this->db->get_results($sql,ARRAY_A);
+		}
+		catch(Exception $e)
+		{
+			echo $e->getMessage();
+		}
+	}
+
+	function getAppointmentDetailsWithDate($userID,$startDate,$endDate){
+		try 
+		{
+			///////////////////// gets the appointment(s) of a particular doctor that are within due date ////////////////////
+
+			$sql = "SELECT * FROM `" . DB_PREFIX . "doctor_appointments` WHERE `doctor_id`='".$userID."' and (`apnt_date` BETWEEN '".$startDate."' AND '".$endDate."')";		
+			return $this->db->get_results($sql,ARRAY_A);
+		}
+		catch(Exception $e)
+		{
+			echo $e->getMessage();
+		}
+	}
+	
+	function getApntDetails($userID,$date,$time,$pant_id){
+		try 
+		{
+			////////// gets the appointment detail fo a particular patient against its appointed doctor and vice versa /////////////
+
+			$sql = "SELECT * FROM `" . DB_PREFIX . "doctor_appointments` WHERE `doctor_id`='".$userID."' and `apnt_date`='".$date."' and `apnt_starttime`='".$time."' and `patient_id`='".$pant_id."'";			
+			return $this->db->get_results($sql,ARRAY_A);
+		}
+		catch(Exception $e)
+		{
+			echo $e->getMessage();
+		}
+	}
+	
